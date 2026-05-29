@@ -1,0 +1,157 @@
+name: Reusable Build and Push Image to ECR
+
+on:
+  workflow_call:
+    inputs:
+      repository_name:
+        description: ECR repository name (without registry host)
+        required: true
+        type: string
+      version_tag_this_branch:
+        description: Branch name that should also receive a version tag
+        required: false
+        default: main
+        type: string
+      base_image_name:
+        description: Base image name and tag (for example node:24-alpine)
+        required: true
+        type: string
+      ecr_pull_through_prefix:
+        description: ECR pull-through cache prefix for base images
+        required: false
+        default: docker-hub/library
+        type: string
+      context:
+        description: Docker build context path
+        required: false
+        default: .
+        type: string
+      dockerfile:
+        description: Dockerfile path
+        required: false
+        default: ./Dockerfile
+        type: string
+      version_command:
+        description: Command that prints the application version to stdout (single line)
+        required: true
+        type: string
+    secrets:
+      AWS_PUSH_TO_ECR_OIDC_ROLE:
+        required: true
+      AWS_DEFAULT_REGION:
+        required: true
+      AWS_ACCOUNT_ID:
+        required: true
+    outputs:
+      branch_tag:
+        description: Sanitized branch tag
+        value: ${{ jobs.build_and_push.outputs.branch_tag }}
+      sha_tag:
+        description: Commit SHA tag
+        value: ${{ jobs.build_and_push.outputs.sha_tag }}
+      image_repository_uri:
+        description: Full ECR repository URI
+        value: ${{ jobs.build_and_push.outputs.image_repository_uri }}
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.ref }}-build-and-push
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    outputs:
+      branch_tag: ${{ steps.extract_branch.outputs.TAG }}
+      sha_tag: sha-${{ github.sha }}
+      image_repository_uri: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/${{ inputs.repository_name }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@cabfdba3510de1431bac9dba27511d97497fc100
+        with:
+          role-to-assume: ${{ secrets.AWS_PUSH_TO_ECR_OIDC_ROLE }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419
+
+      - name: Extract branch name
+        id: extract_branch
+        run: |
+          ref="${GITHUB_REF#refs/heads/}"
+          sanitized=$(echo "$ref" | tr '/' '-')
+          echo "TAG=$sanitized" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve application version
+        id: get_version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION=$(bash -lc "${INPUTS_VERSION_COMMAND}")
+          VERSION="$(echo "$VERSION" | tr -d '\r' | head -n1)"
+
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "Version resolution produced an empty value"
+            exit 1
+          fi
+
+          echo "PACKAGE_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+        env:
+          INPUTS_VERSION_COMMAND: ${{ inputs.version_command }}
+
+      - name: Resolve base image digest via ECR pull-through cache
+        id: base_image
+        run: |
+          IMAGE_REF="${INPUTS_BASE_IMAGE_NAME}"
+          NAME="${IMAGE_REF%%:*}"
+          TAG="${IMAGE_REF##*:}"
+
+          BASE_IMAGE_REF="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/${INPUTS_ECR_PULL_THROUGH_PREFIX}/$NAME:$TAG"
+
+          # Populate the pull-through cache
+          docker pull "$BASE_IMAGE_REF"
+
+          # Read digest from ECR
+          DIGEST=$(aws ecr batch-get-image \
+            --repository-name "${INPUTS_ECR_PULL_THROUGH_PREFIX}/$NAME" \
+            --image-ids imageTag="$TAG" \
+            --query 'images[0].imageId.imageDigest' \
+            --output text)
+
+          echo "BASE_IMAGE_DIGEST=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "BASE_IMAGE_REF=$BASE_IMAGE_REF" >> "$GITHUB_OUTPUT"
+        env:
+          INPUTS_BASE_IMAGE_NAME: ${{ inputs.base_image_name }}
+          INPUTS_ECR_PULL_THROUGH_PREFIX: ${{ inputs.ecr_pull_through_prefix }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: true
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BASE_IMAGE=${{ steps.base_image.outputs.BASE_IMAGE_REF }}
+          labels: |
+            org.opencontainers.image.base.name=${{ inputs.base_image_name }}
+            org.opencontainers.image.base.digest=${{ steps.base_image.outputs.BASE_IMAGE_DIGEST }}
+          tags: |
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/${{ inputs.repository_name }}:${{ steps.extract_branch.outputs.TAG }}
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/${{ inputs.repository_name }}:sha-${{ github.sha }}
+            ${{ github.ref == format('refs/heads/{0}', inputs.version_tag_this_branch) && format('{0}.dkr.ecr.{1}.amazonaws.com/{2}:{3}', secrets.AWS_ACCOUNT_ID, secrets.AWS_DEFAULT_REGION, inputs.repository_name, steps.get_version.outputs.PACKAGE_VERSION) || '' }}

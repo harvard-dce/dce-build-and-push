@@ -1,0 +1,24 @@
+name: Build and Push Image to ECR
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, stage, "*/*"]
+
+jobs:
+  zizmor:
+    name: "Run the Zizmore action scanner"
+    uses: your-org/dce-build-and-push/.github/workflows/zizmor.yml@v1
+
+  build_and_push:
+    name: "Build and push image to ECR"
+    uses: your-org/dce-build-and-push/.github/workflows/reusable-build-and-push.yml@v1
+    with:
+      repository_name: hdce/cryo
+      version_tag_this_branch: main
+      base_image_name: node:24-alpine
+      ecr_pull_through_prefix: docker-hub/library
+      context: ./app
+      dockerfile: ./app/Dockerfile
+      version_command: jq -r .version ./app/package.json
+    secrets: inherit
