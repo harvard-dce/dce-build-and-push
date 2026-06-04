@@ -1,0 +1,37 @@
+name: Actions Inventory
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  inventory:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (tag ref)
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS credentials (tag ref)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/dummy-github-oidc-role
+          aws-region: us-east-1
+
+      - name: Amazon ECR login (tag ref)
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx (tag ref)
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image (tag ref)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+
+      - name: Run zizmor (tag ref)
+        uses: zizmorcore/zizmor-action@v0.5.6

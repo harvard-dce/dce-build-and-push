@@ -1,0 +1,31 @@
+name: Check Action Pin Consistency
+
+on:
+  pull_request:
+    paths:
+      - .github/action-pins.txt
+      - .github/workflows/actions-inventory.yml
+      - .github/workflows/reusable-build-and-push.yml
+      - .github/workflows/zizmor.yml
+      - scripts/check-action-pin-consistency.sh
+  push:
+    branches:
+      - main
+    paths:
+      - .github/action-pins.txt
+      - .github/workflows/actions-inventory.yml
+      - .github/workflows/reusable-build-and-push.yml
+      - .github/workflows/zizmor.yml
+      - scripts/check-action-pin-consistency.sh
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - run: bash scripts/check-action-pin-consistency.sh

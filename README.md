@@ -68,20 +68,56 @@ A ready-to-copy example is also available at `examples/caller-build-and-push.yml
 Use `zizmor` to detect unpinned references, then resolve each action ref with:
 
 ```sh
+scripts/action-ref-sha.sh
 scripts/action-ref-sha.sh <owner/repo> [ref]
 ```
 
 Examples:
 
 ```sh
+# Resolve all action@tag entries from .github/action-pins.txt
+scripts/action-ref-sha.sh
+
+# Resolve one action ref
 scripts/action-ref-sha.sh actions/checkout v6
 scripts/action-ref-sha.sh docker/build-push-action v6
 scripts/action-ref-sha.sh aws-actions/configure-aws-credentials main
 scripts/action-ref-sha.sh actions/checkout
 ```
 
-If `[ref]` is omitted, the script resolves the latest tag.
+With no args, the script outputs `action tag sha` lines for every entry in `.github/action-pins.txt`.
+If `[ref]` is omitted in single-action mode, the script resolves the latest tag.
 For release-safe pinning, pass an explicit release tag such as `v2`.
+
+## Supply-chain maintenance pattern
+
+- Runtime workflows stay pinned to immutable SHAs (`uses: owner/repo@<40-char-sha>`).
+- `.github/workflows/actions-inventory.yml` is an intentionally disabled inventory workflow that tracks semver/tag refs for advisory visibility.
+- `.github/action-pins.txt` is the source-of-truth map of `action tag sha`.
+- `.github/workflows/check-action-pin-consistency.yml` enforces synchronization between tag refs in inventory and SHA refs in runtime workflows.
+- To update pins, resolve tags to SHAs with:
+
+```sh
+scripts/action-ref-sha.sh <owner/repo> <tag>
+```
+
+Then update `.github/action-pins.txt` and corresponding pinned `uses:` entries.
+
+### Example: update one action pin
+
+```sh
+# 1) Resolve the SHA for the desired tag
+scripts/action-ref-sha.sh docker/build-push-action v6
+
+# 2) Update .github/action-pins.txt line:
+# docker/build-push-action v6 <new_sha>
+
+# 3) Update pinned workflow refs to the same <new_sha>
+#    (for example in .github/workflows/reusable-build-and-push.yml)
+
+# 4) Validate consistency
+scripts/check-action-pin-consistency.sh
+```
 
 The script outputs only the resolved 40-character SHA.
 
