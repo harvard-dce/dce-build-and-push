@@ -6,13 +6,15 @@ on:
     branches: [main, stage, "*/*"]
 
 jobs:
-  zizmor:
-    name: "Run the Zizmore action scanner"
-    uses: your-org/dce-build-and-push/.github/workflows/zizmor.yml@v1
+  # Optional: only include this if the caller repository has additional
+  # workflows it wants to scan with zizmor.
+  # zizmor:
+  #   name: "Run the Zizmor action scanner"
+  #   uses: harvard-dce/dce-build-and-push/.github/workflows/zizmor.yml@v1
 
   build_and_push:
     name: "Build and push image to ECR"
-    uses: your-org/dce-build-and-push/.github/workflows/reusable-build-and-push.yml@v1
+    uses: harvard-dce/dce-build-and-push/.github/workflows/reusable-build-and-push.yml@v1
     with:
       repository_name: hdce/cryo
       version_tag_this_branch: main

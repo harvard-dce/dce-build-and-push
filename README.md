@@ -21,6 +21,9 @@ Reusable GitHub Actions workflow for building and pushing Docker images to ECR.
 
 ## Consumer usage
 
+The primary purpose of this repository is to provide a single shared build-and-push workflow that application repositories can reuse.
+In most cases, caller repositories only need the `reusable-build-and-push.yml` workflow.
+
 In each consuming repository, add a workflow under `.github/workflows/`:
 
 ```yaml
@@ -32,11 +35,8 @@ on:
     branches: [main, stage, "*/*"]
 
 jobs:
-  zizmor:
-    uses: your-org/dce-build-and-push/.github/workflows/zizmor.yml@v1
-
   build_and_push:
-    uses: your-org/dce-build-and-push/.github/workflows/reusable-build-and-push.yml@v1
+    uses: harvard-dce/dce-build-and-push/.github/workflows/reusable-build-and-push.yml@v1
     with:
       repository_name: hdce/cryo
       version_tag_this_branch: main
@@ -51,9 +51,22 @@ jobs:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
 ```
 
-> Replace `your-org/dce-build-and-push` and `@v1` with your actual organization/repository and release tag.
+> Replace `harvard-dce/dce-build-and-push` and `@v1` with your actual organization/repository and release tag.
 
 A ready-to-copy example is also available at `examples/caller-build-and-push.yml`.
+
+### Optional: caller-side zizmor workflow
+
+Reusing `.github/workflows/zizmor.yml` from this repository is optional for callers.
+A caller typically only needs this if it has additional workflows of its own that should be scanned.
+
+If you enable it in a caller repository, expect to do some caller-specific setup over time (for example a local `zizmor.yml`/`.github/zizmor.yml` to tune or ignore rules for that repository).
+
+```yaml
+jobs:
+  zizmor:
+    uses: harvard-dce/dce-build-and-push/.github/workflows/zizmor.yml@v1
+```
 
 ### Version command examples
 
