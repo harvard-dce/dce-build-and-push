@@ -54,7 +54,7 @@ on:
         value: ${{ jobs.build_and_push.outputs.image_repository_uri }}
 
 concurrency:
-  group: ${{ github.repository }}-${{ github.ref }}-build-and-push
+  group: ${{ github.repository }}-${{ inputs.repository_name }}-${{ github.ref }}-build-and-push
   cancel-in-progress: true
 
 permissions:
