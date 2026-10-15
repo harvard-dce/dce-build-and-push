@@ -14,6 +14,7 @@ Reusable GitHub Actions workflow for building and pushing Docker images to ECR.
   - `context`
   - `dockerfile`
   - `version_command` (required; language-specific version lookup)
+  - `tag_latest` (default `false`; when `true`, builds on `version_tag_this_branch` also update `:latest`)
 - Required secrets:
   - `AWS_PUSH_TO_ECR_OIDC_ROLE`
   - `AWS_DEFAULT_REGION`

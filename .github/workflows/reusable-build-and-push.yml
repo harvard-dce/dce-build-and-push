@@ -35,6 +35,11 @@ on:
         description: Command that prints the application version to stdout (single line)
         required: true
         type: string
+      tag_latest:
+        description: Also tag the image as latest when building version_tag_this_branch. NOTE it's rare that you actually want this.
+        required: false
+        default: false
+        type: boolean
     secrets:
       AWS_PUSH_TO_ECR_OIDC_ROLE:
         required: true
@@ -155,3 +160,4 @@ jobs:
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/${{ inputs.repository_name }}:${{ steps.extract_branch.outputs.TAG }}
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/${{ inputs.repository_name }}:sha-${{ github.sha }}
             ${{ github.ref == format('refs/heads/{0}', inputs.version_tag_this_branch) && format('{0}.dkr.ecr.{1}.amazonaws.com/{2}:{3}', secrets.AWS_ACCOUNT_ID, secrets.AWS_DEFAULT_REGION, inputs.repository_name, steps.get_version.outputs.PACKAGE_VERSION) || '' }}
+            ${{ inputs.tag_latest && github.ref == format('refs/heads/{0}', inputs.version_tag_this_branch) && format('{0}.dkr.ecr.{1}.amazonaws.com/{2}:latest', secrets.AWS_ACCOUNT_ID, secrets.AWS_DEFAULT_REGION, inputs.repository_name) || '' }}

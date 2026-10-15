@@ -23,4 +23,5 @@ jobs:
       context: ./app
       dockerfile: ./app/Dockerfile
       version_command: jq -r .version ./app/package.json
+      tag_latest: false
     secrets: inherit
