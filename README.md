@@ -103,6 +103,25 @@ With no args, the script outputs `action tag sha` lines for every entry in `.git
 If `[ref]` is omitted in single-action mode, the script resolves the latest tag.
 For release-safe pinning, pass an explicit release tag such as `v2`.
 
+## Refreshing the ECR pull-through cache
+
+The workflow pulls base images through the ECR pull-through cache (`ecr_pull_through_prefix`, default `docker-hub/library`).
+ECR serves the cached tag and refreshes it from upstream on its own schedule (at most once per 24h, best effort), so a rebuild intended to pick up base image patches can silently reuse a stale base.
+
+Before a patch rebuild, invalidate the cache so the next pull fetches the current upstream image:
+
+```sh
+# Requires `docker login` to the ECR registry for the repopulating pulls.
+scripts/refresh-pull-through-cache.sh --profile test
+
+# Delete only; let the next build repopulate the cache.
+scripts/refresh-pull-through-cache.sh --profile test --no-pull
+```
+
+The script deletes every cached image under the prefix (default `docker-hub/`), then re-pulls each previously cached tag and prints its new digest.
+Nothing at runtime depends on the cache repositories; only builds read them.
+Note that a tag pinned to an exact upstream version (for example `python:3.13.5-slim`) refetches the same image; only tracking tags pick up patches.
+
 ## Supply-chain maintenance pattern
 
 - Runtime workflows stay pinned to immutable SHAs (`uses: owner/repo@<40-char-sha>`).
