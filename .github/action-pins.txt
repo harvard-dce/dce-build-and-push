@@ -1,7 +1,7 @@
 # action tag sha
 actions/checkout v6 d23441a48e516b6c34aea4fa41551a30e30af803
-aws-actions/configure-aws-credentials v5 cabfdba3510de1431bac9dba27511d97497fc100
+aws-actions/configure-aws-credentials v6 4a1596c86fd706dc0521e32f0121ad1a6d1adb74
 aws-actions/amazon-ecr-login v2 03f1aad4c6c7ffd436567f42f9384779290529bd
-docker/setup-buildx-action v3 8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-docker/build-push-action v6 10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+docker/setup-buildx-action v4 f87e5991a6d7451dcb8d9637bfbc97413f497069
+docker/build-push-action v7 c3c9e263c25d99ce0380d002d59b67737d91b0dc
 zizmorcore/zizmor-action v0.5.6 5f14fd08f7cf1cb1609c1e344975f152c7ee938d
